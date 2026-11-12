@@ -1,0 +1,12 @@
+{
+  "name": "orca-read-aloud",
+  "private": true,
+  "type": "module",
+  "description": "Orca plugin: read chat replies and other text aloud with Microsoft Edge neural voices.",
+  "license": "MIT",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "validate": "orca plugin validate ."
+  }
+}
