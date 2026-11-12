@@ -52,7 +52,8 @@ export function splitSentences(text: string): Sentence[] {
       while (end - from > MAX_SENTENCE) {
         const window = text.slice(from, from + MAX_SENTENCE);
         const cut = Math.max(window.lastIndexOf(", "), window.lastIndexOf("; "), window.lastIndexOf(": "));
-        const at = cut > MAX_SENTENCE / 3 ? cut + 1 : window.lastIndexOf(" ") > 0 ? window.lastIndexOf(" ") : MAX_SENTENCE;
+        let at = cut > MAX_SENTENCE / 3 ? cut + 1 : window.lastIndexOf(" ") > 0 ? window.lastIndexOf(" ") : MAX_SENTENCE;
+        if (/[\uD800-\uDBFF]/.test(text[from + at - 1])) at--; // never split a surrogate pair
         push(from, from + at);
         from += at;
       }
@@ -77,20 +78,25 @@ export type Word = {
   to: number;
 };
 
+/** Lowercase that keeps the length: a character whose lowercase is longer ("İ") stays as it is. */
+const lower = (text: string) =>
+  text.replace(/[\s\S]/gu, (c) => (c.toLowerCase().length === c.length ? c.toLowerCase() : c));
+
 /**
  * Lines the service's word boundaries up with character offsets in the text that was sent.
  * Boundaries carry the word but not where it came from, so each one is searched for forward
  * from the end of the previous match.
  */
 export function align(text: string, boundaries: Boundary[]): Word[] {
-  const haystack = text.toLowerCase();
+  const haystack = lower(text);
   let cursor = 0;
   return boundaries.map((b) => {
     const start = b.offset / HNS_PER_SECOND;
     const end = (b.offset + b.duration) / HNS_PER_SECOND;
-    const at = haystack.indexOf(b.text.toLowerCase(), cursor);
+    const needle = lower(b.text);
+    const at = haystack.indexOf(needle, cursor);
     if (at < 0 || at - cursor > MAX_SKIP) return { start, end, from: -1, to: -1 };
-    cursor = at + b.text.length;
+    cursor = at + needle.length;
     return { start, end, from: at, to: cursor };
   });
 }

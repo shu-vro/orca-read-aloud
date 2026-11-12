@@ -93,3 +93,16 @@ test("signed and voiceName", () => {
   assert.equal(signed(0, "%"), "+0%");
   assert.equal(voiceName("en-US-EmmaMultilingualNeural", "en-US"), "Emma Multilingual");
 });
+
+test("align keeps offsets right after characters whose lowercase is longer", () => {
+  const text = "İİİ ok then";
+  const words = align(text, ["İİİ", "ok", "then"].map(b));
+  assert.deepEqual(words.map((w) => text.slice(w.from, w.to)), ["İİİ", "ok", "then"]);
+});
+
+test("splitSentences never cuts an emoji in half", () => {
+  const text = "a".repeat(299) + "😀b".repeat(10);
+  const parts = splitSentences(text);
+  assert.equal(parts.map((p) => p.text).join(""), text);
+  for (const p of parts) assert.doesNotMatch(p.text, /^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$/);
+});

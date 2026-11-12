@@ -69,6 +69,18 @@ let settings: Settings = { ...defaults, ...load<Partial<Settings>>("settings", {
 
 const context = new AudioContext();
 const cache = new Map<string, Promise<Clip>>();
+/** Requests not yet answered, so ones nobody will hear can be dropped from the worker's queue. */
+const inflight = new Map<string, { index: number; controller: AbortController }>();
+
+/** Cancels requests outside `[from, from + PREFETCH]`, or all of them without `from`. */
+function cancel(from?: number) {
+  for (const [key, { index: i, controller }] of inflight) {
+    if (from !== undefined && i >= from && i <= from + PREFETCH) continue;
+    controller.abort();
+    cache.delete(key);
+    inflight.delete(key);
+  }
+}
 
 let sentences: Sentence[] = [];
 let spans: HTMLSpanElement[] = [];
@@ -173,11 +185,11 @@ function decodeBase64(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-async function make(text: string, { voice, rate, pitch, volume }: Settings): Promise<Clip> {
+async function make(text: string, { voice, rate, pitch, volume }: Settings, signal: AbortSignal): Promise<Clip> {
   const { audio, boundaries } = (await orca.plugin.request(
     "speak",
     { text, voice, rate: signed(rate, "%"), pitch: signed(pitch, "Hz"), volume: signed(volume, "%") },
-    { timeoutMs: REQUEST_TIMEOUT_MS },
+    { timeoutMs: REQUEST_TIMEOUT_MS, signal },
   )) as { audio: string; boundaries: Boundary[] };
   const buffer = await context.decodeAudioData(decodeBase64(audio));
   const words = align(text, boundaries);
@@ -192,8 +204,10 @@ function clip(i: number): Promise<Clip> {
   let pending = cache.get(key);
   cache.delete(key);
   if (!pending) {
-    pending = make(sentences[i].text, settings);
-    pending.catch(() => cache.delete(key));
+    const controller = new AbortController();
+    pending = make(sentences[i].text, settings, controller.signal);
+    inflight.set(key, { index: i, controller });
+    pending.catch(() => cache.delete(key)).finally(() => inflight.get(key)?.controller === controller && inflight.delete(key));
   }
   cache.set(key, pending); // re-inserted last: most recently used
   if (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value!);
@@ -266,6 +280,8 @@ function follow() {
 
 async function play(i: number) {
   const mine = ++generation;
+  // Skipping through sentences must not leave the one landed on queued behind the ones passed.
+  cancel(i);
   silence();
   current = undefined;
   if (i >= sentences.length) return finish();
@@ -391,7 +407,8 @@ function setSettings(patch: Partial<Settings>) {
   render();
   const audible = (["voice", "rate", "pitch", "volume"] as const).some((k) => before[k] !== settings[k]);
   // New voice or prosody: restart the current sentence so the change is heard at once.
-  if (audible && state === "playing") play(index);
+  if (audible) cancel(); // requests made with the old voice or prosody
+  if (audible && (state === "playing" || state === "loading")) play(index);
   else if (audible && state === "paused") current = undefined;
 }
 

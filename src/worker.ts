@@ -11,6 +11,8 @@ const ATTEMPTS = 4;
 const RETRY_DELAY_MS = 500;
 /** Matches the panel's longest piece with room to spare; anything bigger is not from our panel. */
 const MAX_TEXT = 2000;
+/** No retry starts after this long, so a request settles before the panel's 60 s timeout. */
+const RETRY_BUDGET_MS = 20_000;
 
 type SpeakInput = Prosody & { text: string };
 
@@ -37,6 +39,7 @@ export async function speak(input: unknown, signal?: AbortSignal) {
   if (![voice, rate, pitch, volume].every((v) => typeof v === "string")) throw invalid("voice, rate, pitch and volume are strings");
   const prosody = { voice, rate, pitch, volume } as Prosody;
   return serial(async () => {
+    const started = Date.now();
     for (let attempt = 1; ; attempt++) {
       if (signal?.aborted) throw Object.assign(new Error("cancelled"), { code: "cancelled" });
       try {
@@ -44,7 +47,7 @@ export async function speak(input: unknown, signal?: AbortSignal) {
         // Answers are JSON; at 48 kbit/s a 300-character sentence is far under the 1 MiB cap.
         return { audio: Buffer.from(audio).toString("base64"), boundaries };
       } catch (error) {
-        if (attempt >= ATTEMPTS || /Not a (voice|prosody)/.test(String(error))) throw error;
+        if (attempt >= ATTEMPTS || Date.now() - started > RETRY_BUDGET_MS || /Not a (voice|prosody)/.test(String(error))) throw error;
         await sleep(RETRY_DELAY_MS * 2 ** (attempt - 1));
       }
     }

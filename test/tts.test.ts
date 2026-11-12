@@ -92,6 +92,18 @@ test("a stale parked socket is retried once on a fresh one", async () => {
   assert.equal(sockets.length, 2);
 });
 
+test("a socket parked too long is not reused", async (t) => {
+  await synthesize("One.", prosody);
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() + 16_000 });
+  try {
+    await synthesize("Two.", prosody);
+  } finally {
+    t.mock.timers.reset();
+  }
+  assert.equal(sockets.length, 2);
+  assert.equal(sockets[0].readyState, 3, "the old one is closed");
+});
+
 test("a turn with no audio is an error", async () => {
   behaviour = ["silent"];
   await assert.rejects(synthesize("Hi.", prosody), /No audio/);

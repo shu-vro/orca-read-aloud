@@ -77,6 +77,12 @@ export const net = {
 };
 
 let idle: WebSocket | undefined;
+let parkedAt = 0;
+/**
+ * A socket parked longer than this is not reused: after a network change it can look open while
+ * nothing arrives, which would cost a full TURN_TIMEOUT_MS before the fresh-socket fallback.
+ */
+const REUSE_WITHIN_MS = 15_000;
 
 async function open(): Promise<WebSocket> {
   const url = `wss://${BASE}/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&${query()}&ConnectionId=${id()}`;
@@ -108,6 +114,7 @@ function park(socket: WebSocket) {
   };
   if (idle && idle !== socket) idle.close();
   idle = socket;
+  parkedAt = Date.now();
 }
 
 function turn(socket: WebSocket, text: string, prosody: Prosody): Promise<Clip> {
@@ -159,7 +166,8 @@ export async function synthesize(text: string, prosody: Prosody): Promise<Clip> 
   ssml(text, prosody); // validate before touching the network
   const reused = idle;
   idle = undefined;
-  if (reused && reused.readyState === 1) {
+  if (reused && Date.now() - parkedAt >= REUSE_WITHIN_MS) reused.close();
+  if (reused && reused.readyState === 1 && Date.now() - parkedAt < REUSE_WITHIN_MS) {
     try {
       return await turn(reused, text, prosody);
     } catch {
@@ -174,6 +182,7 @@ export type Voice = { ShortName: string; Locale: string; Gender: string; Friendl
 export async function listVoices(): Promise<Voice[]> {
   const response = await net.fetch(`https://${BASE}/voices/list?trustedclienttoken=${TRUSTED_CLIENT_TOKEN}&${query()}`, {
     headers: HEADERS,
+    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`Voice list failed: HTTP ${response.status}`);
   const voices = (await response.json()) as Voice[];

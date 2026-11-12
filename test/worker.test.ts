@@ -42,3 +42,9 @@ test("speak returns base64 audio", async () => {
   assert.equal(Buffer.from(audio, "base64").toString(), "hi");
   assert.deepEqual(boundaries, []);
 });
+
+test("a request cancelled while queued never reaches the service", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(speak(valid, controller.signal), (error: { code?: string }) => error.code === "cancelled");
+});
