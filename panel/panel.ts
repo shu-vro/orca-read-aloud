@@ -83,6 +83,8 @@ let startedAt = 0;
 /** Position in the current clip to resume from. */
 let offset = 0;
 let state: "idle" | "loading" | "playing" | "paused" = "idle";
+/** Whether the highlight loop is scheduled; one loop at most, however often a clip starts. */
+let following = false;
 
 const wordHighlight = "Highlight" in window && CSS.highlights ? new Highlight() : undefined;
 if (wordHighlight) CSS.highlights.set("read-aloud-word", wordHighlight);
@@ -224,7 +226,10 @@ function sound() {
   startedAt = context.currentTime - offset;
   source.start(0, offset, Math.max(0, playing.length - offset));
   setState("playing");
-  requestAnimationFrame(follow);
+  if (!following) {
+    following = true;
+    requestAnimationFrame(follow);
+  }
 }
 
 function mark(i: number) {
@@ -241,9 +246,11 @@ function mark(i: number) {
 
 /** Moves the word highlight on the animation clock; one frame per frame, no messages per word. */
 function follow() {
-  if (!wordHighlight) return;
-  wordHighlight.clear();
-  if (state !== "playing" || !current || !settings.wordHighlight) return;
+  wordHighlight?.clear();
+  if (!wordHighlight || state !== "playing" || !current || !settings.wordHighlight) {
+    following = false;
+    return;
+  }
   // What is heard trails the context clock by the output latency; the highlight should too.
   const time = context.currentTime - startedAt - (context.outputLatency || 0);
   const word = current.words[wordAt(current.words, time)];
