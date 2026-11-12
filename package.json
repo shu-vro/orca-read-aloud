@@ -4,9 +4,16 @@
   "type": "module",
   "description": "Orca plugin: read chat replies and other text aloud with Microsoft Edge neural voices.",
   "license": "MIT",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
-    "validate": "orca plugin validate ."
+    "validate": "orca plugin validate .",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3"
   }
 }

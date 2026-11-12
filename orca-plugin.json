@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
+  "manifestVersion": 2,
+  "execution": "trusted-worker",
+  "id": "read-aloud",
+  "name": "Read Aloud",
+  "version": "0.1.0",
+  "description": "Read chat replies and any other text aloud with Microsoft Edge neural voices, highlighting each word as it is spoken.",
+  "author": { "name": "Shirshen", "url": "https://github.com/shu-vro" },
+  "repository": "https://github.com/shu-vro/orca-read-aloud",
+  "license": "MIT",
+  "engines": { "orca": ">=1.4.246" },
+  "pluginApi": 1,
+  "main": "src/worker.ts",
+  "contributes": {
+    "panels": [
+      {
+        "id": "reader",
+        "title": "Read Aloud",
+        "icon": "play",
+        "entry": "panel/index.html"
+      }
+    ]
+  }
+}

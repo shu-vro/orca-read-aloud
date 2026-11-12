@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Read Aloud</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Read Aloud</h1>
+      <span id="status" class="status" role="status" aria-live="polite">Ready</span>
+    </header>
+
+    <section class="transport" aria-label="Playback">
+      <button id="prev" class="round" title="Previous sentence (←)" aria-label="Previous sentence" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z" /></svg>
+      </button>
+      <button id="toggle" class="round primary" title="Read (Space)" aria-label="Read">
+        <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg>
+      </button>
+      <button id="next" class="round" title="Next sentence (→)" aria-label="Next sentence" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z" /></svg>
+      </button>
+      <button id="stop" class="round" title="Stop (Esc)" aria-label="Stop" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z" /></svg>
+      </button>
+    </section>
+
+    <section class="text">
+      <textarea
+        id="input"
+        aria-label="Text to read"
+        placeholder="Copy a chat reply with its copy button, then paste it here (⌘V). Reading starts on paste."
+        spellcheck="false"
+      ></textarea>
+      <div id="reader" class="reader" hidden></div>
+      <div class="row">
+        <button id="edit" class="link" hidden>Edit text</button>
+        <button id="clear" class="link">Clear</button>
+      </div>
+    </section>
+
+    <details class="card" id="voice-card">
+      <summary>Voice and speed</summary>
+      <label class="field">
+        <span>Voice</span>
+        <select id="voice"><option>Loading voices…</option></select>
+      </label>
+      <label class="field slider">
+        <span>Speed</span><output id="rate-out"></output>
+        <input id="rate" type="range" min="-50" max="100" step="5" />
+      </label>
+      <label class="field slider">
+        <span>Pitch</span><output id="pitch-out"></output>
+        <input id="pitch" type="range" min="-50" max="50" step="5" />
+      </label>
+      <label class="field slider">
+        <span>Volume</span><output id="volume-out"></output>
+        <input id="volume" type="range" min="-50" max="50" step="5" />
+      </label>
+      <label class="switch">Start reading on paste <input id="autoRead" type="checkbox" role="switch" /></label>
+      <label class="switch">Highlight each word <input id="wordHighlight" type="checkbox" role="switch" /></label>
+      <label class="switch">Skip Markdown syntax and code blocks <input id="stripMarkdown" type="checkbox" role="switch" /></label>
+      <button id="reset" class="link">Reset to defaults</button>
+    </details>
+
+    <footer>Click a sentence to read from there · Space play/pause · ← → sentence · Esc stop</footer>
+
+    <script type="module" src="panel.ts"></script>
+  </body>
+</html>
