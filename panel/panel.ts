@@ -117,6 +117,8 @@ function setState(next: typeof state) {
   ui.stop.disabled = !active;
   ui.prev.disabled = !active || index <= 0;
   ui.next.disabled = !active || index >= sentences.length - 1;
+  const progress = active && sentences.length ? ((index + (next === "playing" ? 1 : 0)) / sentences.length) * 100 : 0;
+  $("progress").style.width = `${progress}%`;
   if (next === "playing") setStatus(`Sentence ${index + 1} of ${sentences.length}`);
   if (next === "loading") setStatus("Loading…");
   if (next === "paused") setStatus("Paused");
@@ -311,6 +313,7 @@ function finish() {
   index = 0;
   setState("idle");
   setStatus("Finished");
+  $("progress").style.width = "100%";
   context.suspend(); // nothing to play: let the output device go
 }
 
@@ -318,6 +321,7 @@ function stop() {
   if (state === "idle") return;
   finish();
   setStatus("Ready");
+  $("progress").style.width = "0%";
 }
 
 function start(i = 0) {
@@ -412,30 +416,58 @@ function setSettings(patch: Partial<Settings>) {
   else if (audible && state === "paused") current = undefined;
 }
 
-const sliders = [
-  ["rate", "%"],
-  ["pitch", " Hz"],
-  ["volume", "%"],
-] as const;
+/** Speed reads better as a multiplier: +25% is shown as 1.25×. */
+const speed = (rate: number) => `${(1 + rate / 100).toFixed(2).replace(/\.?0+$/, "")}×`;
+const sliders = {
+  rate: speed,
+  pitch: (n: number) => `${signed(n, "")} Hz`,
+  volume: (n: number) => `${signed(n, "")}%`,
+} as const;
+type Slider = keyof typeof sliders;
+const SPEED_PRESETS = [-25, 0, 25, 50, 100];
+
+/** Shows a slider's value and fills its track up to the thumb. */
+function paint(key: Slider, value: number) {
+  const input = $<HTMLInputElement>(key);
+  const fill = ((value - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100;
+  input.style.setProperty("--fill", `${fill}%`);
+  $(`${key}-out`).textContent = sliders[key](value);
+  if (key === "rate") for (const chip of $("presets").children) chip.setAttribute("aria-pressed", String(Number((chip as HTMLElement).dataset.rate) === value));
+}
 
 function render() {
-  for (const [key, unit] of sliders) {
+  for (const key of Object.keys(sliders) as Slider[]) {
     $<HTMLInputElement>(key).value = String(settings[key]);
-    $(`${key}-out`).textContent = `${signed(settings[key], "")}${unit}`;
+    paint(key, settings[key]);
   }
   for (const key of ["autoRead", "wordHighlight", "stripMarkdown"] as const) $<HTMLInputElement>(key).checked = settings[key];
   if ([...ui.voice.options].some((o) => o.value === settings.voice)) ui.voice.value = settings.voice;
 }
 
-for (const [key] of sliders) {
+$("presets").append(
+  ...SPEED_PRESETS.map((rate) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.dataset.rate = String(rate);
+    chip.textContent = speed(rate);
+    chip.addEventListener("click", () => setSettings({ rate }));
+    return chip;
+  }),
+);
+for (const key of Object.keys(sliders) as Slider[]) {
   const input = $<HTMLInputElement>(key);
   // `input` updates the label while dragging; `change` re-synthesizes once, on release.
-  input.addEventListener("input", () => ($(`${key}-out`).textContent = `${signed(Number(input.value), "")}${sliders.find(([k]) => k === key)![1]}`));
+  input.addEventListener("input", () => paint(key, Number(input.value)));
   input.addEventListener("change", () => setSettings({ [key]: Number(input.value) }));
 }
 for (const key of ["autoRead", "wordHighlight", "stripMarkdown"] as const) {
   $<HTMLInputElement>(key).addEventListener("change", (event) => setSettings({ [key]: (event.target as HTMLInputElement).checked }));
 }
+// Remember whether the settings card was left open.
+const card = $<HTMLDetailsElement>("settings");
+card.open = load("settingsOpen", false);
+card.addEventListener("toggle", () => save("settingsOpen", card.open));
 ui.voice.addEventListener("change", () => setSettings({ voice: ui.voice.value }));
 ui.reset.addEventListener("click", () => setSettings({ ...defaults }));
 

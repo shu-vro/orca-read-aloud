@@ -199,7 +199,7 @@ try {
   step("clicking a sentence reads from there");
 
   await evaluate(`(() => { const r = document.getElementById("rate"); r.value = "50"; r.dispatchEvent(new Event("input")); r.dispatchEvent(new Event("change")); })()`);
-  assert.equal(await evaluate("document.getElementById('rate-out').textContent"), "+50%");
+  assert.equal(await evaluate("document.getElementById('rate-out').textContent"), "1.5×");
   await waitFor("/^Sentence [67] of/.test(document.getElementById('status').textContent)", "keep reading after a speed change");
   assert.equal(JSON.parse(await evaluate<string>("localStorage.getItem('settings')")).rate, 50);
   step("speed change applies at once and persists");
