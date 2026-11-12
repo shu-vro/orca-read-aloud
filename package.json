@@ -10,7 +10,8 @@
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
     "validate": "orca plugin validate .",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "e2e": "node --no-warnings test/e2e.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
